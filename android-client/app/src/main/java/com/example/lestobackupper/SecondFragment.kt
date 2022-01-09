@@ -1,5 +1,6 @@
 package com.example.lestobackupper
 
+import android.content.Context
 import android.os.Bundle
 import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
@@ -34,8 +35,14 @@ class SecondFragment : Fragment() {
 
         binding.buttonSecond.setOnClickListener {
             context?.let {
-                upload(it)
-                //runFilesystemSweep(it)
+                context ->
+                val pref = context?.getSharedPreferences("settings", Context.MODE_PRIVATE)
+                val serverIP = pref!!.getString("serverIP", null)
+                serverIP?.let {
+                    host ->
+                    val uploader = FileSystemUploader(requireContext(), host);
+                    uploader.upload(context)
+                }
             }
             findNavController().navigate(R.id.action_SecondFragment_to_FirstFragment)
         }
