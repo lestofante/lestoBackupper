@@ -60,11 +60,13 @@ public class Main
                 receiveFile(clientSocket, tempFolder);
             } catch (IOException e) {
                 e.printStackTrace();
+            } catch (URISyntaxException e) {
+                e.printStackTrace();
             }
         }
     }
 
-    private static void receiveFile(Socket clientSocket, final File tempFolder) {
+    private static void receiveFile(Socket clientSocket, final File tempFolder) throws URISyntaxException {
         File tempFileName;
         System.out.println("temp file created");
         try (
@@ -73,36 +75,71 @@ public class Main
         ) {
             tempFileName = File.createTempFile("a.lb-", ".temp.jpg", tempFolder);
             System.out.println("got new connection");
+            String id;
             {
                 int idLen = in.readInt();
                 System.out.println("got idLen "+idLen);
                 byte buf[] = new byte[idLen];
                 in.readFully(buf);
-                String id = new String(buf);
+                id = new String(buf);
                 System.out.println("id: " + id);
             }
 
+            String basePath;
             {
                 int basePathLen = in.readInt();
                 System.out.println("got basePathLen "+basePathLen);
                 byte buf[] = new byte[basePathLen];
                 in.readFully(buf);
-                String basePath = new String(buf);
+                basePath = new String(buf);
                 System.out.println("basePath: " + basePath);
             }
 
+            String path;
             {
                 int pathLen = in.readInt();
                 System.out.println("got pathLen "+pathLen);
                 byte buf[] = new byte[pathLen];
                 in.readFully(buf);
-                String path = new String(buf);
+                path = new String(buf);
                 System.out.println("path: " + path);
             }
 
+            long fileLen;
+            byte hash[];
+            File outPath;
             {
-                long fileLen = in.readLong();
-                System.out.println("got fileLen "+fileLen);
+                fileLen = in.readLong();
+                System.out.println("got fileLen " + fileLen);
+
+                hash = new byte[32]; //sha 256
+                in.readFully(hash);
+                System.out.println("got hash " + Arrays.toString(hash));
+
+                //TODO: replace with a map based on basePath
+                File baseOutPath = new File("/tmp/tests/"+id);
+                baseOutPath.mkdirs();
+
+                if (!path.startsWith(basePath)){
+                    System.out.println("cant understand relative path between " + path + " and " + basePath);
+                    return;
+                }
+
+                String relative = path.substring(basePath.length());
+                String fileRelativePath = URLDecoder.decode(relative, "utf-8");
+                outPath = new File(baseOutPath, fileRelativePath);
+                System.out.println("relative is: "+relative+ " uri: "+fileRelativePath + " final path is " + outPath);
+                File parent = outPath.getParentFile();
+                if (parent != null){
+                    // make sure the file has the folders required
+                    parent.mkdirs();
+                }
+            }
+
+            // force upload request
+            out.writeBoolean(true);
+
+            {
                 try (FileOutputStream f = new FileOutputStream(tempFileName)) {
                     byte buf[] = new byte[8192];
                     long start = System.currentTimeMillis();
@@ -142,19 +179,16 @@ public class Main
                 }
                 bis.close();
 
-                byte[] hash = digest.digest();
-                out.write(hash);
-                System.out.println("hashed as: " + Arrays.toString(hash));
-            }
-
-            {
-                boolean ok = in.readBoolean();
-                System.out.println("final result: " + ok);
-                if (ok){
-                    //tempFileName.renameTo();
+                byte[] calc_hash = digest.digest();
+                System.out.println("hashed as: " + Arrays.toString(calc_hash) + " expected: " + calc_hash);
+                boolean hashAreEquals = Arrays.compare(calc_hash, hash) == 0;
+                out.writeBoolean(hashAreEquals);
+                if (hashAreEquals){
+                    boolean result = tempFileName.renameTo(outPath);
+                    out.writeBoolean(result);
                 }else{
                     //invalid transfer!
-                    //tempFileName.delete();
+                    tempFileName.delete();
                 }
             }
 

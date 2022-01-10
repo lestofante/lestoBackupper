@@ -14,8 +14,10 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import android.content.DialogInterface
 import android.content.SharedPreferences
+import android.net.Uri
 import android.widget.EditText
 import android.util.Log
+import java.lang.Exception
 
 /**
  * A simple [Fragment] subclass as the default destination in the navigation.
@@ -54,6 +56,7 @@ class FirstFragment : Fragment(), MyRecyclerViewAdapter.ItemClickListener {
             Log.d("", "setting serverIP to $serverIP")
             val editor: SharedPreferences.Editor = pref.edit()
             editor.putString("serverIP", serverIP)
+            editor.putString("id", "cacca")
             editor.commit()
 
             val uploader = FileSystemUploader(requireContext(), serverIP);
@@ -63,6 +66,18 @@ class FirstFragment : Fragment(), MyRecyclerViewAdapter.ItemClickListener {
         binding.buttonAddPath.setOnClickListener {
             val intent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE)
             requireActivity().startActivityForResult(intent, 42)
+        }
+
+        binding.addServer.setOnClickListener{
+            try {
+                val intent = Intent("com.google.zxing.client.android.SCAN")
+                intent.putExtra("SCAN_MODE", "QR_CODE_MODE") // "PRODUCT_MODE for bar codes
+                requireActivity().startActivityForResult(intent, 43)
+            } catch (e: Exception) {
+                val marketUri: Uri = Uri.parse("market://details?id=com.google.zxing.client.android")
+                val marketIntent = Intent(Intent.ACTION_VIEW, marketUri)
+                startActivity(marketIntent)
+            }
         }
 
         updateRv();

@@ -7,6 +7,7 @@ import android.util.Log
 
 class DeviceRebootReceiver : BroadcastReceiver() {
     override fun onReceive(context : Context?, intent : Intent?) {
+        Log.w("DeviceRebootReceiver", "DeviceRebootReceiver STARTED")
         if (context != null) {
             runFilesystemSweep(context)
         }else{

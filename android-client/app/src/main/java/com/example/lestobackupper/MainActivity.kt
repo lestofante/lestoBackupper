@@ -1,5 +1,6 @@
 package com.example.lestobackupper
 
+import android.R.attr
 import android.content.Context
 import android.content.SharedPreferences
 import android.os.Bundle
@@ -26,6 +27,8 @@ import java.net.InetAddress
 import java.net.SocketTimeoutException
 import java.util.*
 import java.util.concurrent.TimeoutException
+import android.R.attr.data
+import android.app.Activity
 
 
 class MainActivity : AppCompatActivity() {
@@ -50,42 +53,7 @@ class MainActivity : AppCompatActivity() {
                 .setAction("Action", null).show()
         }
 
-        val thread = Thread {
-
-            val MCAST_ADDR = "255.255.255.255";
-            val GROUP = InetAddress.getByName(MCAST_ADDR);
-            val socket = java.net.DatagramSocket(4446)
-            socket.broadcast = true
-
-            var expected = "LestoBackupper0".toByteArray()
-            var buf = ByteArray(expected.size)
-            val packet = java.net.DatagramPacket(buf, buf.size)
-            var received = false;
-            val requestBuf = "LestoBackupper?".toByteArray()
-            val request = java.net.DatagramPacket(requestBuf, requestBuf.size, GROUP, 4445)
-            socket.soTimeout = 2000;   // set the timeout in milliseconds.
-            while (!received) {
-                socket.send(request)
-                try {
-                    while (true) {
-                        // we are gonna read UDP broadcast until no answer come back for 2 seconds
-                        socket.receive(packet)
-                        val message = packet.data
-                        Log.d("Autodiscovery", "found broadcast: " + String(message))
-                        received = Arrays.equals(message, expected)
-                        if (received) {
-                            val senderIP = packet.address.hostAddress
-                            Log.d("Autodiscovery", "found server: $senderIP")
-                        }
-                    }
-                }catch(e: SocketTimeoutException){
-                    Log.d("Autodiscovery", "server answer timeout")
-                }
-            }
-
-            socket.close()
-        }
-        thread.start()
+        FolderListener.scheduleJob(baseContext)
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
@@ -130,6 +98,10 @@ class MainActivity : AppCompatActivity() {
                     val editor: SharedPreferences.Editor = pref.edit()
                     editor.putString("path", treeUri.toString())
                     editor.commit()
+                }
+                43 -> {
+                    val contents = resultData!!.getStringExtra("SCAN_RESULT")
+                    Log.d("onActivityResult", "scanned QR was: $contents")
                 }
                 else -> {
                     Log.e("onActivityResult", "unknown requestCode: " + requestCode + " " + resultData!!.data);
